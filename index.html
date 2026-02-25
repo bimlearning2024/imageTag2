@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dynamic Multi-Layer Overlayer (Full Sinhala Fonts)</title>
+    <title>Dynamic Multi-Layer Overlayer (Auto-Save Enabled)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Abhaya+Libre:wght@400;700&family=Bebas+Neue&family=Inter:wght@400;900&family=Montserrat:wght@400;700;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Roboto+Condensed:wght@400;700&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -148,6 +148,7 @@
             .mobile-tab-content { display: flex !important; }
             .mobile-nav { display: none; }
         }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 font-sans overflow-hidden">
@@ -155,7 +156,7 @@
     <div id="loadingOverlay">
         <div class="text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="mt-4 font-medium text-slate-600">Starting Designer...</p>
+            <p class="mt-4 font-medium text-slate-600">Restoring Data...</p>
         </div>
     </div>
 
@@ -163,7 +164,7 @@
         <header class="flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg md:text-xl font-bold text-slate-800">Overlay Designer</h1>
-                <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Fast Layer Control</p>
+                <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Auto-Save Enabled</p>
             </div>
             <button id="downloadBtn" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg active:scale-95 transition-transform">Download</button>
         </header>
@@ -173,7 +174,10 @@
                 
                 <div id="tab-images" class="mobile-tab-content flex-col gap-4 active">
                     <div id="imageDetails" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Image Info</h3>
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Image Info</h3>
+                            <button onclick="clearAllData()" class="text-red-500 font-bold text-[10px] uppercase">Clear All</button>
+                        </div>
                         <input type="text" id="imageNameEdit" class="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Image Name">
                     </div>
 
@@ -271,6 +275,7 @@
     </div>
 
     <script>
+        const STORAGE_KEY = 'image_overlayer_data';
         const DEFAULT_COLOR = '#0000C8';
         let pages = []; 
         let currentIndex = -1;
@@ -282,6 +287,56 @@
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+
+        // Persistence: Save
+        function saveData() {
+            try {
+                // We strip the actual Image objects and keep data URLs for storage
+                const dataToSave = pages.map(p => ({
+                    name: p.name,
+                    dataUrl: p.dataUrl,
+                    layers: p.layers
+                }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+            } catch (e) {
+                console.warn("Storage quota exceeded or error saving.", e);
+            }
+        }
+
+        // Persistence: Load
+        async function loadData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return;
+            try {
+                const rawPages = JSON.parse(stored);
+                const loadedPages = [];
+                for (const p of rawPages) {
+                    const img = await new Promise((res) => {
+                        const i = new Image();
+                        i.onload = () => res(i);
+                        i.src = p.dataUrl;
+                    });
+                    loadedPages.push({ ...p, image: img });
+                }
+                pages = loadedPages;
+                if (pages.length > 0) switchPage(0);
+            } catch (e) {
+                console.error("Error loading data", e);
+            }
+        }
+
+        function clearAllData() {
+            if (confirm("Clear all images and layers? This cannot be undone.")) {
+                localStorage.removeItem(STORAGE_KEY);
+                pages = [];
+                currentIndex = -1;
+                activeLayerIndex = -1;
+                canvas.classList.add('hidden');
+                document.getElementById('zoomOverlay').classList.add('hidden');
+                document.getElementById('placeholderText').classList.remove('hidden');
+                renderAll();
+            }
+        }
 
         function setTab(tabId) {
             document.querySelectorAll('.mobile-tab-content').forEach(el => el.classList.remove('active'));
@@ -361,6 +416,7 @@
             renderLayersList();
             updateEditorUI();
             draw();
+            saveData();
         }
 
         function renderThumbs() {
@@ -430,6 +486,7 @@
                 l.x += dx * (2 / zoomLevel);
                 l.y += dy * (2 / zoomLevel);
                 draw();
+                saveData();
             };
             move();
             moveTimeout = setTimeout(() => { moveInterval = setInterval(move, 50); }, 250);
@@ -440,7 +497,6 @@
             clearInterval(moveInterval);
         }
 
-        // Event listeners for dragging
         function getMousePos(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -469,7 +525,10 @@
                 draw();
             }
         });
-        window.addEventListener('mouseup', () => draggingLayerIndex = -1);
+        window.addEventListener('mouseup', () => { 
+            if (draggingLayerIndex !== -1) saveData();
+            draggingLayerIndex = -1;
+        });
 
         document.getElementById('imageInput').onchange = (e) => {
             Array.from(e.target.files).forEach(file => {
@@ -481,7 +540,7 @@
                             name: file.name.split('.')[0], image: img, dataUrl: ev.target.result, 
                             layers: [{ text: 'New Text', x: img.width/2, y: img.height/2, size: 5, color: DEFAULT_COLOR, font: "'UN-Abhaya', sans-serif", isBold: false }] 
                         });
-                        if (currentIndex === -1) switchPage(pages.length - 1); else renderThumbs();
+                        if (currentIndex === -1) switchPage(pages.length - 1); else renderAll();
                     };
                     img.src = ev.target.result;
                 };
@@ -496,6 +555,14 @@
             renderAll();
         };
 
+        document.getElementById('imageNameEdit').oninput = (e) => {
+            if (currentIndex !== -1) {
+                pages[currentIndex].name = e.target.value;
+                renderThumbs();
+                saveData();
+            }
+        };
+
         ['editContent', 'editFont', 'editSize', 'editColor', 'editBold'].forEach(id => {
             document.getElementById(id).oninput = (e) => {
                 if (activeLayerIndex === -1) return;
@@ -505,7 +572,9 @@
                 if (id === 'editBold') l.isBold = e.target.checked;
                 if (id === 'editSize') { l.size = parseFloat(e.target.value); document.getElementById('sizeValueBadge').innerText = l.size.toFixed(1); }
                 if (id === 'editColor') l.color = e.target.value;
-                draw(); renderLayersList();
+                draw(); 
+                renderLayersList();
+                saveData();
             };
         });
 
@@ -523,7 +592,8 @@
             });
         };
 
-        window.onload = () => {
+        window.onload = async () => {
+            await loadData();
             document.getElementById('loadingOverlay').style.display = 'none';
             if (window.innerWidth < 1024) setTab('images');
         };

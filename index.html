@@ -49,6 +49,14 @@
             background: #eff6ff;
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
+        .image-thumb-container {
+            position: relative;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
         .image-thumb {
             width: 70px;
             height: 70px;
@@ -57,11 +65,23 @@
             cursor: pointer;
             border: 2px solid transparent;
             transition: transform 0.2s;
-            flex-shrink: 0;
         }
         .image-thumb:hover { transform: scale(1.05); }
         .image-thumb.active { border-color: #3b82f6; }
         
+        .thumb-label {
+            font-size: 8px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            max-width: 70px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            outline: none;
+            padding: 0;
+        }
+
         #loadingOverlay {
             position: fixed;
             inset: 0;
@@ -72,40 +92,55 @@
             z-index: 9999;
         }
 
+        .zoom-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 101;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(4px);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .d-pad {
             position: absolute;
-            bottom: 80px;
+            bottom: 20px;
             right: 20px;
             display: grid;
             grid-template-areas: 
                 ". up ."
                 "left . right"
                 ". down .";
-            gap: 10px;
-            z-index: 100;
+            gap: 8px;
+            z-index: 101;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(4px);
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
-        @media (min-width: 1024px) {
-            .d-pad { bottom: 24px; }
-        }
+        
         .d-btn {
-            width: 45px;
-            height: 45px;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(8px);
-            border: 1px solid #cbd5e1;
+            width: 42px;
+            height: 42px;
+            background: white;
+            border: 1px solid #e2e8f0;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 10px -3px rgb(0 0 0 / 0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 18px;
+            color: #1e293b;
             user-select: none;
             touch-action: none;
         }
-
-        input[type=range] { cursor: pointer; }
-        
-        optgroup { font-weight: bold; font-style: normal; color: #64748b; font-size: 10px; text-transform: uppercase; }
-        option { font-weight: normal; color: #1e293b; font-size: 14px; }
+        .d-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
         .mobile-tab-content { display: none; }
         .mobile-tab-content.active { display: flex; }
@@ -120,7 +155,7 @@
     <div id="loadingOverlay">
         <div class="text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="mt-4 font-medium text-slate-600">Loading Designer...</p>
+            <p class="mt-4 font-medium text-slate-600">Starting Designer...</p>
         </div>
     </div>
 
@@ -128,7 +163,7 @@
         <header class="flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg md:text-xl font-bold text-slate-800">Overlay Designer</h1>
-                <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Mobile Optimized Layout</p>
+                <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Fast Layer Control</p>
             </div>
             <button id="downloadBtn" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg active:scale-95 transition-transform">Download</button>
         </header>
@@ -137,19 +172,24 @@
             <div id="sidebar" class="lg:w-80 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1">
                 
                 <div id="tab-images" class="mobile-tab-content flex-col gap-4 active">
+                    <div id="imageDetails" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Image Info</h3>
+                        <input type="text" id="imageNameEdit" class="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Image Name">
+                    </div>
+
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                         <label class="cursor-pointer bg-blue-600 text-white w-full py-3 rounded-xl font-bold text-center block shadow-md hover:bg-blue-700 transition-colors">
                             + Add Images
                             <input type="file" id="imageInput" accept="image/*" multiple class="hidden" />
                         </label>
-                        <div id="thumbList" class="flex gap-3 overflow-x-auto mt-4 py-2"></div>
+                        <div id="thumbList" class="flex gap-4 overflow-x-auto mt-4 py-2 scrollbar-hide"></div>
                     </div>
                 </div>
 
                 <div id="tab-styles" class="mobile-tab-content flex-col gap-4">
                     <div id="styleEditor" class="hidden bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-4">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Text Style</h3>
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Style</h3>
                             <div class="flex items-center gap-2">
                                 <span class="text-[9px] font-bold text-slate-500">BOLD</span>
                                 <input type="checkbox" id="editBold" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
@@ -163,22 +203,19 @@
                                 <option value="'UN-Derana', sans-serif">UN-Derana</option>
                                 <option value="'UN-Ganganee', sans-serif">UN-Ganganee</option>
                                 <option value="'UN-Gemunu', sans-serif">UN-Gemunu</option>
-                                <option value="'UN-Isiwara', sans-serif">UN-Isiwara</option>
-                                <option value="'UN-Rajantha', sans-serif">UN-Rajantha</option>
                             </optgroup>
                             <optgroup label="English">
                                 <option value="'Inter', sans-serif">Inter</option>
                                 <option value="'Montserrat', sans-serif">Montserrat</option>
                                 <option value="'Bebas Neue', cursive">Bebas Neue</option>
-                                <option value="'Oswald', sans-serif">Oswald</option>
                             </optgroup>
                         </select>
                         <div class="flex items-center gap-4">
                             <input type="color" id="editColor" class="w-10 h-10 rounded-lg cursor-pointer bg-transparent">
                             <div class="flex-grow">
                                 <div class="flex justify-between items-center mb-1">
-                                    <label class="text-[9px] font-bold text-slate-400 uppercase">FONT SIZE</label>
-                                    <span id="sizeValueBadge" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">50px</span>
+                                    <label class="text-[9px] font-bold text-slate-400 uppercase">Size</label>
+                                    <span id="sizeValueBadge" class="text-blue-600 text-[10px] font-bold">5.0</span>
                                 </div>
                                 <input type="range" id="editSize" min="1" max="25" step="0.1" class="w-full h-1 accent-blue-600">
                             </div>
@@ -187,55 +224,48 @@
                     
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                         <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Text Layers</h3>
-                            <button id="addLayerBtn" class="text-blue-600 font-bold text-xs hover:bg-blue-50 px-2 py-1 rounded">+ Add</button>
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Layers</h3>
+                            <button id="addLayerBtn" class="text-blue-600 font-bold text-xs">+ Add</button>
                         </div>
-                        <div id="layersContainer" class="space-y-2"></div>
-                    </div>
-                </div>
-
-                <div id="tab-canvas" class="mobile-tab-content flex-col gap-4">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Canvas Zoom</h3>
-                            <span id="zoomBadge" class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">100%</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <button onclick="adjustZoom(-0.1)" class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600">-</button>
-                            <input type="range" id="zoomRange" min="0.1" max="5" step="0.1" value="1" class="flex-grow h-1 accent-blue-600">
-                            <button onclick="adjustZoom(0.1)" class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600">+</button>
-                        </div>
+                        <div id="layersContainer" class="space-y-2 max-h-40 overflow-y-auto"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="viewport" class="flex-grow relative bg-slate-800 rounded-2xl overflow-hidden min-h-0 flex flex-col">
+            <div id="viewport" class="flex-grow relative bg-slate-800 rounded-2xl overflow-hidden flex flex-col min-h-0">
+                <div id="zoomOverlay" class="zoom-overlay hidden">
+                    <button onclick="adjustZoom(-0.1)" class="w-8 h-8 rounded bg-white font-bold">-</button>
+                    <span id="zoomBadge" class="text-[10px] font-bold min-w-[40px] text-center">100%</span>
+                    <button onclick="adjustZoom(0.1)" class="w-8 h-8 rounded bg-white font-bold">+</button>
+                </div>
+
                 <div id="canvasWrapper" class="canvas-container">
                     <div id="placeholderText" class="text-slate-400 text-center p-8">
                         <p class="font-bold">No Image Selected</p>
                         <p class="text-sm opacity-60">Upload photos to start</p>
                     </div>
                     <canvas id="canvas" class="hidden"></canvas>
-                </div>
 
-                <div id="fineTuneControls" class="d-pad hidden">
-                    <button class="d-btn" style="grid-area: up" onmousedown="startMove(0, -1)" ontouchstart="startMove(0, -1)" onmouseup="stopMove()" ontouchend="stopMove()">↑</button>
-                    <button class="d-btn" style="grid-area: left" onmousedown="startMove(-1, 0)" ontouchstart="startMove(-1, 0)" onmouseup="stopMove()" ontouchend="stopMove()">←</button>
-                    <button class="d-btn" style="grid-area: right" onmousedown="startMove(1, 0)" ontouchstart="startMove(1, 0)" onmouseup="stopMove()" ontouchend="stopMove()">→</button>
-                    <button class="d-btn" style="grid-area: down" onmousedown="startMove(0, 1)" ontouchstart="startMove(0, 1)" onmouseup="stopMove()" ontouchend="stopMove()">↓</button>
+                    <!-- D-Pad Overlay -->
+                    <div id="fineTuneControls" class="d-pad hidden">
+                        <button class="d-btn" style="grid-area: up" onmousedown="handleDPadDown(0, -1)" ontouchstart="handleDPadDown(0, -1)" onmouseup="handleDPadUp()" ontouchend="handleDPadUp()">↑</button>
+                        <button class="d-btn" style="grid-area: left" onmousedown="handleDPadDown(-1, 0)" ontouchstart="handleDPadDown(-1, 0)" onmouseup="handleDPadUp()" ontouchend="handleDPadUp()">←</button>
+                        <button class="d-btn" style="grid-area: right" onmousedown="handleDPadDown(1, 0)" ontouchstart="handleDPadDown(1, 0)" onmouseup="handleDPadUp()" ontouchend="handleDPadUp()">→</button>
+                        <button class="d-btn" style="grid-area: down" onmousedown="handleDPadDown(0, 1)" ontouchstart="handleDPadDown(0, 1)" onmouseup="handleDPadUp()" ontouchend="handleDPadUp()">↓</button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <nav class="mobile-nav flex lg:hidden bg-white border-t border-slate-200 -mx-2 -mb-2 px-4 py-2 justify-around shrink-0 z-50">
             <button onclick="setTab('images')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 p-2" id="nav-images">
-                <span class="text-xs font-bold">Images</span>
+                <span class="text-xs font-bold">Files</span>
             </button>
             <button onclick="setTab('canvas')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 p-2" id="nav-canvas">
                 <span class="text-xs font-bold">Canvas</span>
             </button>
             <button onclick="setTab('styles')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 p-2" id="nav-styles">
-                <span class="text-xs font-bold">Layers</span>
+                <span class="text-xs font-bold">Text</span>
             </button>
         </nav>
     </div>
@@ -247,43 +277,26 @@
         let activeLayerIndex = -1; 
         let draggingLayerIndex = -1;
         let dragOffsetX = 0, dragOffsetY = 0;
-        let moveTimer = null;
+        let moveInterval = null, moveTimeout = null;
         let zoomLevel = 1.0;
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const zoomRange = document.getElementById('zoomRange');
-        const zoomBadge = document.getElementById('zoomBadge');
 
         function setTab(tabId) {
             document.querySelectorAll('.mobile-tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('text-blue-600'));
-            document.getElementById('tab-' + tabId).classList.add('active');
-            document.getElementById('nav-' + tabId).classList.add('text-blue-600');
+            const content = document.getElementById('tab-' + tabId);
+            if (content) content.classList.add('active');
+            const nav = document.getElementById('nav-' + tabId);
+            if (nav) nav.classList.add('text-blue-600');
+            
             const viewport = document.getElementById('viewport');
             const sidebar = document.getElementById('sidebar');
             if (window.innerWidth < 1024) {
-                if (tabId === 'canvas') {
-                    viewport.style.display = 'flex';
-                    sidebar.style.display = 'none';
-                } else {
-                    viewport.style.display = 'none';
-                    sidebar.style.display = 'flex';
-                }
+                viewport.style.display = (tabId === 'canvas') ? 'flex' : 'none';
+                sidebar.style.display = (tabId !== 'canvas') ? 'flex' : 'none';
             }
-        }
-
-        async function init() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-            if (window.innerWidth < 1024) setTab('images');
-        }
-
-        function loadImage(src) {
-            return new Promise(res => {
-                const img = new Image();
-                img.onload = () => res(img);
-                img.src = src;
-            });
         }
 
         function adjustZoom(delta) {
@@ -291,16 +304,37 @@
             updateZoomUI();
         }
 
-        zoomRange.oninput = (e) => {
-            zoomLevel = parseFloat(e.target.value);
-            updateZoomUI();
-        };
-
         function updateZoomUI() {
-            zoomRange.value = zoomLevel;
-            zoomBadge.innerText = Math.round(zoomLevel * 100) + '%';
+            document.getElementById('zoomBadge').innerText = Math.round(zoomLevel * 100) + '%';
             canvas.style.transform = `scale(${zoomLevel})`;
             draw();
+        }
+
+        async function draw() {
+            if (currentIndex === -1) return;
+            const page = pages[currentIndex];
+            await document.fonts.ready;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(page.image, 0, 0);
+
+            page.layers.forEach((layer, idx) => {
+                const fontSize = layer.size * 10;
+                ctx.font = `${layer.isBold ? 'bold' : 'normal'} ${fontSize}px ${layer.font}`;
+                ctx.textBaseline = 'middle';
+                const metrics = ctx.measureText(layer.text);
+                layer.width = metrics.width;
+                layer.height = fontSize;
+
+                if (idx === activeLayerIndex) {
+                    ctx.save();
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.lineWidth = Math.max(1, (fontSize * 0.05) / zoomLevel);
+                    ctx.strokeRect(layer.x - 5, layer.y - (layer.height/2) - 5, layer.width + 10, layer.height + 10);
+                    ctx.restore();
+                }
+                ctx.fillStyle = layer.color;
+                ctx.fillText(layer.text, layer.x, layer.y);
+            });
         }
 
         function switchPage(index) {
@@ -309,12 +343,15 @@
             canvas.width = page.image.width;
             canvas.height = page.image.height;
             canvas.classList.remove('hidden');
+            document.getElementById('zoomOverlay').classList.remove('hidden');
             document.getElementById('placeholderText').classList.add('hidden');
             activeLayerIndex = page.layers.length > 0 ? 0 : -1;
+            
             const container = document.getElementById('canvasWrapper');
             const ratio = Math.min((container.clientWidth - 40) / canvas.width, (container.clientHeight - 40) / canvas.height);
             zoomLevel = Math.min(1.0, ratio);
             updateZoomUI();
+            
             if (window.innerWidth < 1024) setTab('canvas');
             renderAll();
         }
@@ -326,110 +363,24 @@
             draw();
         }
 
-        // REDRAW FUNCTION: Handles font loading states
-        async function draw() {
-            if (currentIndex === -1) return;
-            const page = pages[currentIndex];
-            
-            // Wait for fonts to be ready before drawing to ensure correct rendering
-            await document.fonts.ready;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(page.image, 0, 0);
-
-            page.layers.forEach((layer, idx) => {
-                const fontSize = layer.size * 10;
-                const weight = layer.isBold ? 'bold' : 'normal';
-                ctx.font = `${weight} ${fontSize}px ${layer.font}`;
-                ctx.textBaseline = 'middle';
-                const metrics = ctx.measureText(layer.text);
-                layer.width = metrics.width;
-                layer.height = fontSize;
-
-                if (idx === activeLayerIndex) {
-                    ctx.save();
-                    ctx.strokeStyle = '#3b82f6';
-                    ctx.lineWidth = Math.max(1, (fontSize * 0.02) / zoomLevel);
-                    ctx.setLineDash([fontSize/5, fontSize/5]);
-                    ctx.strokeRect(layer.x - 10, layer.y - (layer.height/2) - 10, layer.width + 20, layer.height + 20);
-                    ctx.restore();
-                }
-                ctx.fillStyle = layer.color;
-                ctx.fillText(layer.text, layer.x, layer.y);
-            });
-        }
-
-        function getMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-        }
-
-        function handleStart(e) {
-            if (currentIndex === -1) return;
-            const pos = getMousePos(e);
-            draggingLayerIndex = -1;
-            const page = pages[currentIndex];
-            for (let i = page.layers.length - 1; i >= 0; i--) {
-                const l = page.layers[i];
-                const hitPad = 40 / zoomLevel; 
-                if (pos.x >= l.x - hitPad && pos.x <= l.x + l.width + hitPad &&
-                    pos.y >= l.y - l.height/2 - hitPad && pos.y <= l.y + l.height/2 + hitPad) {
-                    draggingLayerIndex = i;
-                    activeLayerIndex = i;
-                    dragOffsetX = pos.x - l.x;
-                    dragOffsetY = pos.y - l.y;
-                    renderAll();
-                    break;
-                }
-            }
-        }
-
-        function handleMove(e) {
-            if (draggingLayerIndex !== -1) {
-                const pos = getMousePos(e);
-                pages[currentIndex].layers[draggingLayerIndex].x = pos.x - dragOffsetX;
-                pages[currentIndex].layers[draggingLayerIndex].y = pos.y - dragOffsetY;
-                draw();
-            }
-        }
-
-        function startMove(dx, dy) {
-            if (activeLayerIndex === -1) return;
-            const move = () => {
-                const layer = pages[currentIndex].layers[activeLayerIndex];
-                layer.x += dx * (5 / zoomLevel); 
-                layer.y += dy * (5 / zoomLevel);
-                draw();
-            };
-            move();
-            moveTimer = setInterval(move, 50);
-        }
-
-        function stopMove() {
-            if (moveTimer) { clearInterval(moveTimer); moveTimer = null; }
-        }
-
-        canvas.addEventListener('mousedown', handleStart);
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('mouseup', () => draggingLayerIndex = -1);
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleStart(e); }, {passive:false});
-        window.addEventListener('touchmove', (e) => { if(draggingLayerIndex!==-1) e.preventDefault(); handleMove(e); }, {passive:false});
-        window.addEventListener('touchend', () => draggingLayerIndex = -1);
-
         function renderThumbs() {
             const list = document.getElementById('thumbList');
             list.innerHTML = "";
             pages.forEach((p, idx) => {
+                const container = document.createElement('div');
+                container.className = "image-thumb-container";
                 const img = document.createElement('img');
                 img.src = p.dataUrl;
                 img.className = `image-thumb ${idx === currentIndex ? 'active' : ''}`;
                 img.onclick = () => switchPage(idx);
-                list.appendChild(img);
+                const label = document.createElement('span');
+                label.className = "thumb-label";
+                label.innerText = p.name || `Img ${idx + 1}`;
+                container.appendChild(img);
+                container.appendChild(label);
+                list.appendChild(container);
             });
+            if (currentIndex !== -1) document.getElementById('imageNameEdit').value = pages[currentIndex].name;
         }
 
         function renderLayersList() {
@@ -468,17 +419,71 @@
             document.getElementById('editFont').value = l.font;
             document.getElementById('editSize').value = l.size;
             document.getElementById('editColor').value = l.color;
-            document.getElementById('editBold').checked = !!l.isBold;
-            document.getElementById('sizeValueBadge').innerText = Math.round(l.size * 10) + 'px';
+            document.getElementById('editBold').checked = l.isBold;
+            document.getElementById('sizeValueBadge').innerText = l.size.toFixed(1);
         }
+
+        function handleDPadDown(dx, dy) {
+            if (activeLayerIndex === -1) return;
+            const move = () => {
+                const l = pages[currentIndex].layers[activeLayerIndex];
+                l.x += dx * (2 / zoomLevel);
+                l.y += dy * (2 / zoomLevel);
+                draw();
+            };
+            move();
+            moveTimeout = setTimeout(() => { moveInterval = setInterval(move, 50); }, 250);
+        }
+
+        function handleDPadUp() {
+            clearTimeout(moveTimeout);
+            clearInterval(moveInterval);
+        }
+
+        // Event listeners for dragging
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(e);
+            draggingLayerIndex = -1;
+            const layers = pages[currentIndex].layers;
+            for (let i = layers.length - 1; i >= 0; i--) {
+                const l = layers[i];
+                if (pos.x >= l.x && pos.x <= l.x + l.width && pos.y >= l.y - l.height/2 && pos.y <= l.y + l.height/2) {
+                    draggingLayerIndex = i; activeLayerIndex = i;
+                    dragOffsetX = pos.x - l.x; dragOffsetY = pos.y - l.y;
+                    renderAll(); break;
+                }
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (draggingLayerIndex !== -1) {
+                const pos = getMousePos(e);
+                pages[currentIndex].layers[draggingLayerIndex].x = pos.x - dragOffsetX;
+                pages[currentIndex].layers[draggingLayerIndex].y = pos.y - dragOffsetY;
+                draw();
+            }
+        });
+        window.addEventListener('mouseup', () => draggingLayerIndex = -1);
 
         document.getElementById('imageInput').onchange = (e) => {
             Array.from(e.target.files).forEach(file => {
                 const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    const img = await loadImage(ev.target.result);
-                    pages.push({ image: img, dataUrl: ev.target.result, layers: [{ text: 'Layer ' + (pages.length+1), x: img.width/2, y: img.height/2, size: 5, color: DEFAULT_COLOR, font: "'UN-Abhaya', sans-serif", isBold: false }] });
-                    if (currentIndex === -1) switchPage(pages.length - 1); else renderThumbs();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        pages.push({ 
+                            name: file.name.split('.')[0], image: img, dataUrl: ev.target.result, 
+                            layers: [{ text: 'New Text', x: img.width/2, y: img.height/2, size: 5, color: DEFAULT_COLOR, font: "'UN-Abhaya', sans-serif", isBold: false }] 
+                        });
+                        if (currentIndex === -1) switchPage(pages.length - 1); else renderThumbs();
+                    };
+                    img.src = ev.target.result;
                 };
                 reader.readAsDataURL(file);
             });
@@ -498,10 +503,7 @@
                 if (id === 'editContent') l.text = e.target.value;
                 if (id === 'editFont') l.font = e.target.value;
                 if (id === 'editBold') l.isBold = e.target.checked;
-                if (id === 'editSize') {
-                    l.size = parseFloat(e.target.value);
-                    document.getElementById('sizeValueBadge').innerText = Math.round(l.size * 10) + 'px';
-                }
+                if (id === 'editSize') { l.size = parseFloat(e.target.value); document.getElementById('sizeValueBadge').innerText = l.size.toFixed(1); }
                 if (id === 'editColor') l.color = e.target.value;
                 draw(); renderLayersList();
             };
@@ -510,10 +512,10 @@
         document.getElementById('downloadBtn').onclick = () => {
             if (currentIndex === -1) return;
             const oldIdx = activeLayerIndex;
-            activeLayerIndex = -1; 
+            activeLayerIndex = -1;
             draw().then(() => {
                 const link = document.createElement('a');
-                link.download = `overlay-${Date.now()}.jpg`;
+                link.download = `${pages[currentIndex].name || 'overlay'}.jpg`;
                 link.href = canvas.toDataURL('image/jpeg', 0.95);
                 link.click();
                 activeLayerIndex = oldIdx;
@@ -521,15 +523,10 @@
             });
         };
 
-        window.onload = init;
-        window.addEventListener('resize', () => {
-            if (window.innerWidth >= 1024) {
-                document.getElementById('sidebar').style.display = 'flex';
-                document.getElementById('viewport').style.display = 'flex';
-            } else {
-                setTab('canvas');
-            }
-        });
+        window.onload = () => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            if (window.innerWidth < 1024) setTab('images');
+        };
     </script>
 </body>
 </html>

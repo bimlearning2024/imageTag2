@@ -149,6 +149,25 @@
             .mobile-nav { display: none; }
         }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+        .step-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #475569;
+            transition: all 0.1s;
+        }
+        .step-btn:active {
+            background: #e2e8f0;
+            transform: scale(0.9);
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 font-sans overflow-hidden">
@@ -166,12 +185,17 @@
                 <h1 class="text-lg md:text-xl font-bold text-slate-800">Overlay Designer</h1>
                 <p class="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Auto-Save Enabled</p>
             </div>
-            <button id="downloadBtn" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg active:scale-95 transition-transform">Download</button>
+            <div class="flex gap-2">
+                <button id="shareBtn" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold border border-blue-200 active:scale-95 transition-transform flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    Share
+                </button>
+                <button id="downloadBtn" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg active:scale-95 transition-transform">Download</button>
+            </div>
         </header>
 
         <div class="flex-grow flex flex-col lg:flex-row gap-4 min-h-0">
             <div id="sidebar" class="lg:w-80 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1">
-                
                 <div id="tab-images" class="mobile-tab-content flex-col gap-4 active">
                     <div id="imageDetails" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
                         <div class="flex justify-between items-center">
@@ -180,7 +204,6 @@
                         </div>
                         <input type="text" id="imageNameEdit" class="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Image Name">
                     </div>
-
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                         <label class="cursor-pointer bg-blue-600 text-white w-full py-3 rounded-xl font-bold text-center block shadow-md hover:bg-blue-700 transition-colors">
                             + Add Images
@@ -214,14 +237,20 @@
                                 <option value="'Bebas Neue', cursive">Bebas Neue</option>
                             </optgroup>
                         </select>
-                        <div class="flex items-center gap-4">
-                            <input type="color" id="editColor" class="w-10 h-10 rounded-lg cursor-pointer bg-transparent">
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="text-[9px] font-bold text-slate-400 uppercase">Size</label>
-                                    <span id="sizeValueBadge" class="text-blue-600 text-[10px] font-bold">5.0</span>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <input type="color" id="editColor" class="w-10 h-10 rounded-lg cursor-pointer bg-transparent">
+                                <div class="flex-grow">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <label class="text-[9px] font-bold text-slate-400 uppercase">Size</label>
+                                        <span id="sizeValueBadge" class="text-blue-600 text-[10px] font-bold">5.0</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="changeFontSize(-0.1)" class="step-btn">−</button>
+                                        <input type="range" id="editSize" min="1" max="25" step="0.1" class="flex-grow h-1 accent-blue-600">
+                                        <button onclick="changeFontSize(0.1)" class="step-btn">+</button>
+                                    </div>
                                 </div>
-                                <input type="range" id="editSize" min="1" max="25" step="0.1" class="w-full h-1 accent-blue-600">
                             </div>
                         </div>
                     </div>
@@ -249,8 +278,6 @@
                         <p class="text-sm opacity-60">Upload photos to start</p>
                     </div>
                     <canvas id="canvas" class="hidden"></canvas>
-
-                    <!-- D-Pad Overlay -->
                     <div id="fineTuneControls" class="d-pad hidden">
                         <button class="d-btn" style="grid-area: up" onmousedown="handleDPadDown(0, -1)" ontouchstart="handleDPadDown(0, -1)" onmouseup="handleDPadUp()" ontouchend="handleDPadUp()">↑</button>
                         <button class="d-btn" style="grid-area: left" onmousedown="handleDPadDown(-1, 0)" ontouchstart="handleDPadDown(-1, 0)" onmouseup="handleDPadUp()" ontouchend="handleDPadUp()">←</button>
@@ -288,10 +315,8 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Persistence: Save
         function saveData() {
             try {
-                // We strip the actual Image objects and keep data URLs for storage
                 const dataToSave = pages.map(p => ({
                     name: p.name,
                     dataUrl: p.dataUrl,
@@ -299,11 +324,10 @@
                 }));
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
             } catch (e) {
-                console.warn("Storage quota exceeded or error saving.", e);
+                console.warn("Storage quota exceeded.", e);
             }
         }
 
-        // Persistence: Load
         async function loadData() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (!stored) return;
@@ -326,7 +350,7 @@
         }
 
         function clearAllData() {
-            if (confirm("Clear all images and layers? This cannot be undone.")) {
+            if (confirm("Clear all images and layers?")) {
                 localStorage.removeItem(STORAGE_KEY);
                 pages = [];
                 currentIndex = -1;
@@ -479,6 +503,15 @@
             document.getElementById('sizeValueBadge').innerText = l.size.toFixed(1);
         }
 
+        function changeFontSize(delta) {
+            if (activeLayerIndex === -1) return;
+            const input = document.getElementById('editSize');
+            let newValue = parseFloat(input.value) + delta;
+            newValue = Math.max(parseFloat(input.min), Math.min(parseFloat(input.max), newValue));
+            input.value = newValue;
+            input.dispatchEvent(new Event('input'));
+        }
+
         function handleDPadDown(dx, dy) {
             if (activeLayerIndex === -1) return;
             const move = () => {
@@ -570,11 +603,12 @@
                 if (id === 'editContent') l.text = e.target.value;
                 if (id === 'editFont') l.font = e.target.value;
                 if (id === 'editBold') l.isBold = e.target.checked;
-                if (id === 'editSize') { l.size = parseFloat(e.target.value); document.getElementById('sizeValueBadge').innerText = l.size.toFixed(1); }
+                if (id === 'editSize') { 
+                    l.size = parseFloat(e.target.value); 
+                    document.getElementById('sizeValueBadge').innerText = l.size.toFixed(1); 
+                }
                 if (id === 'editColor') l.color = e.target.value;
-                draw(); 
-                renderLayersList();
-                saveData();
+                draw(); renderLayersList(); saveData();
             };
         });
 
@@ -590,6 +624,36 @@
                 activeLayerIndex = oldIdx;
                 draw();
             });
+        };
+
+        document.getElementById('shareBtn').onclick = async () => {
+            if (currentIndex === -1) return;
+            const oldIdx = activeLayerIndex;
+            activeLayerIndex = -1;
+            await draw();
+            
+            canvas.toBlob(async (blob) => {
+                activeLayerIndex = oldIdx;
+                draw();
+                
+                if (!blob) return;
+                const fileName = `${pages[currentIndex].name || 'overlay'}.jpg`;
+                const file = new File([blob], fileName, { type: 'image/jpeg' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Edited Image',
+                            text: 'Check out this overlay I made!'
+                        });
+                    } catch (error) {
+                        console.error('Share failed', error);
+                    }
+                } else {
+                    alert("Sharing is not supported on this browser/device.");
+                }
+            }, 'image/jpeg', 0.95);
         };
 
         window.onload = async () => {

@@ -394,13 +394,14 @@
         async function draw() {
             if (currentIndex === -1) return;
             const page = pages[currentIndex];
+            
+            // Critical fix: wait for fonts to be ready before drawing
             await document.fonts.ready;
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(page.image, 0, 0);
 
             page.layers.forEach((layer, idx) => {
-                // Adjusting font size to correspond with the 1-100 step range
-                // A step of 20 results in a 50px font relative to a baseline
                 const fontSize = layer.size * 2.5; 
                 ctx.font = `${layer.isBold ? 'bold' : 'normal'} ${fontSize}px ${layer.font}`;
                 ctx.textBaseline = 'middle';
@@ -601,7 +602,7 @@
         };
 
         ['editContent', 'editFont', 'editSize', 'editColor', 'editBold'].forEach(id => {
-            document.getElementById(id).oninput = (e) => {
+            document.getElementById(id).oninput = async (e) => {
                 if (activeLayerIndex === -1) return;
                 const l = pages[currentIndex].layers[activeLayerIndex];
                 if (id === 'editContent') l.text = e.target.value;
@@ -612,7 +613,13 @@
                     document.getElementById('sizeValueBadge').innerText = l.size; 
                 }
                 if (id === 'editColor') l.color = e.target.value;
-                draw(); renderLayersList(); saveData();
+                
+                // Redraw twice for safety when fonts change
+                await draw();
+                renderLayersList(); 
+                saveData();
+                // Second call ensures that if the font finished loading after first call, it applies
+                setTimeout(draw, 50); 
             };
         });
 
